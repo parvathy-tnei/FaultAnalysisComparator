@@ -1,0 +1,36 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <rect x="18" y="18" width="220" height="220" rx="38" ry="38" fill="#12324A"/>
+
+    <line x1="58" y1="62" x2="58" y2="196" stroke="#34566F" stroke-width="4"/>
+    <line x1="58" y1="196" x2="204" y2="196" stroke="#34566F" stroke-width="4"/>
+
+    <line x1="58" y1="154" x2="204" y2="154" stroke="#23465E" stroke-width="2"/>
+    <line x1="58" y1="112" x2="204" y2="112" stroke="#23465E" stroke-width="2"/>
+    <line x1="58" y1="70" x2="204" y2="70" stroke="#23465E" stroke-width="2"/>
+
+    <polyline
+        points="60,166 84,142 108,148 132,96 156,118 184,76 208,92"
+        fill="none"
+        stroke="#35D0BA"
+        stroke-width="10"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+    <polyline
+        points="60,184 84,170 108,176 132,140 156,150 184,122 208,132"
+        fill="none"
+        stroke="#F7B731"
+        stroke-width="7"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        opacity="0.95"/>
+
+    <circle cx="84" cy="142" r="7" fill="#EAF9FF"/>
+    <circle cx="132" cy="96" r="7" fill="#EAF9FF"/>
+    <circle cx="184" cy="76" r="7" fill="#EAF9FF"/>
+
+    <path
+        d="M132 40 L98 116 H128 L110 176 L166 88 H134 L154 40 Z"
+        fill="#FFD166"
+        opacity="0.92"/>
+</svg>

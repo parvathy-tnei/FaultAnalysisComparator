@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="icons/ta_comparator.svg">icons/ta_comparator.svg</file>
+        <file alias="icons/ta_comparator.ico">icons/ta_comparator.ico</file>
+    </qresource>
+</RCC>
