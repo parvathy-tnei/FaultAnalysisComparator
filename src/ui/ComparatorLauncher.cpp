@@ -1,92 +1,188 @@
 #include "ComparatorLauncher.h"
 #include "FaultAnalysisWindow.h"
-
 #include "../../mainwindow.h"
 
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
-#include <QSpacerItem>
-#include <QSizePolicy>
+#include <QHBoxLayout>
+#include <QFrame>
+#include <QEvent>
+#include <QGraphicsDropShadowEffect>
 
-
-
-ComparatorLauncher::ComparatorLauncher(QWidget *parent):QWidget(parent) //this is the constructor, inside this we will create all UI elements
+ComparatorLauncher::ComparatorLauncher(QWidget *parent)
+    : QWidget(parent)
 {
+    setWindowTitle("Comparator Suite");
+    resize(860, 520);
+    setMinimumSize(760, 440);
+    setObjectName("launcherRoot");
 
-    setWindowTitle("ComparatorTool");
-    resize(800, 500);
+    setStyleSheet(
+        "QWidget#launcherRoot {"
+        "    background-color: #F8FAFC;"
+        "}"
+        "QFrame#hubCard {"
+        "    background-color: #FFFFFF;"
+        "    border: 1px solid #E2E8F0;"
+        "    border-radius: 12px;"
+        "}"
+        "QFrame#hubCard:hover {"
+        "    border: 1.5px solid #2563EB;"
+        "}"
+        "QLabel#cardTitle {"
+        "    font-size: 17px;"
+        "    font-weight: 700;"
+        "    color: #0F172A;"
+        "}"
+        "QPushButton#hubCardAction {"
+        "    background-color: #FFFFFF;"
+        "    color: #1769AA;"
+        "    border: 1px solid #1769AA;"
+        "    border-radius: 6px;"
+        "    font-size: 13px;"
+        "    font-weight: 600;"
+        "    padding: 8px 16px;"
+        "}"
+        "QPushButton#hubCardAction:hover {"
+        "    background-color: #F1F7FC;"
+        "    color: #1769AA;"
+        "}"
+        "QPushButton#hubCardAction:pressed {"
+        "    background-color: #E2EFF9;"
+        "}"
+        );
 
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(40, 40, 40, 30);
+    mainLayout->setSpacing(0);
 
-    layout->setContentsMargins(20,20,20,20);
+    // =========================================================
+    // HEADER AREA (Power Systems Analysis text removed)
+    // =========================================================
+    mainLayout->addStretch(1);
+
+    QLabel *mainTitle = new QLabel("Comparator Suite", this);
+    mainTitle->setStyleSheet("font-size: 28px; font-weight: 800; color: #0F172A;");
+    mainTitle->setAlignment(Qt::AlignCenter);
+
+    QLabel *mainSubtitle = new QLabel("Select an analysis module to get started", this);
+    mainSubtitle->setStyleSheet("font-size: 13px; color: #64748B; margin-top: 4px;");
+    mainSubtitle->setAlignment(Qt::AlignCenter);
+
+    mainLayout->addWidget(mainTitle);
+    mainLayout->addWidget(mainSubtitle);
+    mainLayout->addSpacing(32);
+
+    // =========================================================
+    // SIDE-BY-SIDE CARDS (Badges removed)
+    // =========================================================
+    QHBoxLayout *cardRow = new QHBoxLayout();
+    cardRow->setSpacing(20);
+    cardRow->setAlignment(Qt::AlignCenter);
+
+    mTransientCard = createHubCard(
+        "Transient Analysis",
+        "Open Module  →",
+        "transient"
+        );
+
+    mFaultCard = createHubCard(
+        "Fault Analysis",
+        "Open Module  →",
+        "fault"
+        );
+
+    cardRow->addWidget(mTransientCard);
+    cardRow->addWidget(mFaultCard);
+    mainLayout->addLayout(cardRow);
+
+    mainLayout->addStretch(2);
 
 
-    //QLabel *title = new QLabel("Comparator Tool", this);
-    //title->setAlignment(Qt::AlignCenter);
 
-    QLabel *subtitle = new QLabel("Select Comparison Tool",this);
-    subtitle->setAlignment(Qt::AlignCenter);
-
-    QFont subtitleFont;
-    subtitleFont.setPointSize(12);
-    subtitle->setFont(subtitleFont);
-
-
-
-    mTransientButton = new QPushButton("Transient Analysis Comparison",this);
-    mFaultButton = new QPushButton("Fault Anlaysis Comparison", this);
-
-    mTransientButton->setMinimumHeight(50);
-    mFaultButton->setMinimumHeight(50);
-
-    layout->addStretch(2);
-    layout->addWidget(subtitle);
-
-    layout->addSpacing(40);
-    layout->addWidget(mTransientButton);
-    layout->addSpacing(10);
-    layout->addWidget(mFaultButton);
-    layout->addStretch(2);
-
-    connect(mTransientButton, &QPushButton::clicked, this, &ComparatorLauncher::OpenTransientAnalysis);
-    connect(mFaultButton, &QPushButton::clicked, this, &ComparatorLauncher::OpenFaultAnalysis);
-
+    // Make entire cards clickable
+    mTransientCard->installEventFilter(this);
+    mFaultCard->installEventFilter(this);
 }
 
-void ComparatorLauncher:: OpenTransientAnalysis()
+QFrame *ComparatorLauncher::createHubCard(
+    const QString &title,
+    const QString &actionText,
+    const QString &cardId)
+{
+    QFrame *card = new QFrame(this);
+    card->setObjectName("hubCard");
+    card->setFixedSize(290, 136);
+    card->setCursor(Qt::PointingHandCursor);
+
+    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(card);
+    shadow->setBlurRadius(20);
+    shadow->setColor(QColor(15, 23, 42, 10));
+    shadow->setOffset(0, 5);
+    card->setGraphicsEffect(shadow);
+
+    QVBoxLayout *cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(22, 22, 22, 18);
+    cardLayout->setSpacing(0);
+
+    // Title
+    QLabel *titleLabel = new QLabel(title, card);
+    titleLabel->setObjectName("cardTitle");
+    cardLayout->addWidget(titleLabel);
+
+    cardLayout->addStretch(1);
+
+    // Button
+    QPushButton *actionBtn = new QPushButton(actionText, card);
+    actionBtn->setObjectName("hubCardAction");
+    actionBtn->setCursor(Qt::PointingHandCursor);
+
+    if (cardId == "transient")
+    {
+        mTransientBtn = actionBtn;
+        connect(mTransientBtn, &QPushButton::clicked, this, &ComparatorLauncher::OpenTransientAnalysis);
+    }
+    else
+    {
+        mFaultBtn = actionBtn;
+        connect(mFaultBtn, &QPushButton::clicked, this, &ComparatorLauncher::OpenFaultAnalysis);
+    }
+
+    cardLayout->addWidget(actionBtn);
+
+    return card;
+}
+
+bool ComparatorLauncher::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::MouseButtonRelease)
+    {
+        if (watched == mTransientCard)
+        {
+            OpenTransientAnalysis();
+            return true;
+        }
+        else if (watched == mFaultCard)
+        {
+            OpenFaultAnalysis();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void ComparatorLauncher::OpenTransientAnalysis()
 {
     MainWindow *window = new MainWindow();
     window->showMaximized();
     close();
 }
-void  ComparatorLauncher::OpenFaultAnalysis(){
 
+void ComparatorLauncher::OpenFaultAnalysis()
+{
     FaultAnalysisWindow *window = new FaultAnalysisWindow();
     window->setAttribute(Qt::WA_DeleteOnClose);
     window->showMaximized();
     close();
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

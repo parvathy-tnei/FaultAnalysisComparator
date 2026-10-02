@@ -5,8 +5,13 @@
 #include <QList>
 #include <QMap>
 
+#include "FaultComparisonSelectionWidget.h" // Provides TableLayoutMode
+
 class QTableWidget;
+class QTableView;
 class QLabel;
+class QScrollArea;
+class QVBoxLayout;
 
 class FaultComparisonTableWidget : public QWidget
 {
@@ -22,29 +27,29 @@ public:
         const QList<QStringList> &headersPerFile,
         const QList<QList<QStringList>> &rowsPerFile,
         const QStringList &selectedColumns,
-        const QList<QMap<QString, QString>> &columnMappingsPerFile,
-        bool differenceEnabled
+        const QList<QMap<QString, QString>> &columnMappingsPerFile
         );
+
     QStringList groupNames() const;
 
-
 public slots:
-    void setSelectedColumns(
-        const QStringList &columns
-        );
+    void setSelectedColumns(const QStringList &columns);
+    void removeFileFromSavedOrder(const QString &fileName);
+    void setLayoutMode(TableLayoutMode mode);
 
-    void removeFileFromSavedOrder(
-        const QString &fileName
-        );
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void RebuildTable();
+    void buildStackedView();
+    void updateFrozenGeometry();
 
     void saveColumnOrder();
     void restoreColumnOrder();
     void saveFileOrder();
     void restoreFileOrder();
-    //void removeFileFromSavedOrder(const QString &fileName);
+
     bool columnAvailableForFile(int fileIndex, const QString &column) const;
 
     QString valueFor(
@@ -59,33 +64,31 @@ private:
         const QString &column
         ) const;
 
-
 private:
+    QStringList                     mFileNames;
+    QList<QStringList>              mHeadersPerFile;
+    QList<QList<QStringList>>       mRowsPerFile;
+    QStringList                     mSelectedColumns;
+    QStringList                     mSavedColumnOrder;
+    QStringList                     mSavedFileOrder;
+    QList<QMap<QString, QString>>   mColumnMappingsPerFile;
+    QStringList                     mGroupNames;
+    QStringList                     mCustomRowOrder;
 
-    QTableWidget *mTable;
-    QLabel *mEmptyLabel;
-    QStringList mFileNames;
-    QList<QStringList> mHeadersPerFile;
-    QList<QList<QStringList>> mRowsPerFile;
-    QStringList mSelectedColumns;
-    QStringList mSavedColumnOrder;
-    QStringList mSavedFileOrder;
+    bool                            mDifferenceEnabled = false;
+    TableLayoutMode                 mLayoutMode = TableLayoutMode::SideBySide;
 
+    QLabel                         *mComparisonTitle = nullptr;
+    QLabel                         *mComparisonSummary = nullptr;
+    QWidget                        *mComparisonLegend = nullptr;
+    QLabel                         *mEmptyLabel = nullptr;
 
-    // Mapping for each individual CSV file.
-    //
-    // Example:
-    //
-    // File 0:
-    // "Symmetric RMS Current" -> "AC Mag. (kA)"
-    //
-    // File 1:
-    // "Asymmetric RMS Current" -> "Red Phase Mag. (kA)"
-    //
-    QList<QMap<QString, QString>> mColumnMappingsPerFile;
+    // Mode A (Side by Side)
+    QTableWidget                   *mTable = nullptr;
+    QTableView                     *mFrozenView = nullptr; // Anchored overlay for # and Name
 
-    // Global Difference option.
-    bool mDifferenceEnabled = false;
-
-    QStringList mGroupNames;
+    // Mode B (Stacked)
+    QScrollArea                    *mStackedScrollArea = nullptr;
+    QWidget                        *mStackedContainer = nullptr;
+    QVBoxLayout                    *mStackedLayout = nullptr;
 };

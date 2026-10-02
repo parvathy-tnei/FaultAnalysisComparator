@@ -7,21 +7,24 @@
 
 #include "FaultTypeSettings.h"
 
-class QHBoxLayout; // chnaged from tab to box
+class FaultFileCard;
+class QGridLayout;
+class QLabel;
 class QVBoxLayout;
 class QScrollArea;
 class QWidget;
 class QAction;
 class QPushButton;
 class QToolButton;
+class QPropertyAnimation;
+class QFrame;
 
 class FaultComparisonSelectionWidget;
 class FaultComparisonTableWidget;
 class FaultTypeSettingsWidget;
 class FaultTypeSettingsSummaryWidget;
 
-class FaultAnalysisWindow : public QMainWindow  // FaultAnalysiswindow is now a qt widget
-
+class FaultAnalysisWindow : public QMainWindow
 {
     Q_OBJECT
 
@@ -29,39 +32,53 @@ public:
     explicit FaultAnalysisWindow(QWidget *parent = nullptr);
 
 private slots:
+
+    // ---------------------------------------------------------
+    // File handling
+    // ---------------------------------------------------------
     void addCsvFiles();
     void closeFile(int index);
+    void closeFileByPath(const QString &filePath);
     void clearLoadedFiles();
+
+    // ---------------------------------------------------------
+    // General window / comparison
+    // ---------------------------------------------------------
     void updateWindowTitle();
     void updateComparisonTable();
     void exportPdf();
+    void exportWord();
     void showAbout();
 
-    // Fault Type Settings
-    void applyFaultTypeConfiguration( const QString &filePath,const FaultTypeSettings &settings);
+    // ---------------------------------------------------------
+    // New File Card UI
+    // ---------------------------------------------------------
+    void updateSelectedFileCount();
+    void handleFileSettingsChanged(
+        const QString &filePath,
+        const FaultTypeSettings &settings);
 
-    void clearFaultTypeConfiguration(const QString &filePath);
+    void handleFileRename(
+        const QString &filePath,
+        const QString &newName);
 
-    // Collapse / expand
-    void toggleFaultTypeSettings();
 
 private:
 
-    void refreshFileTabs();
-    // Fault Type Settings UI
-    void showFaultTypeSettings();
-    void updateFaultTypeSettings();
+    void updateFileScrollAreaHeight();
+    // ---------------------------------------------------------
+    // File card UI
+    // ---------------------------------------------------------
+    void refreshFileCards();
+
+    // ---------------------------------------------------------
+    // Comparison selection
+    // ---------------------------------------------------------
     void rebuildComparisonSelection();
 
-    /*
-     * Returns the display name for a CSV column.
-     *
-     * At the moment this keeps the original CSV
-     * column name. The fault-specific mapping can
-     * be added here once the exact IPSA mapping
-     * is defined.
-     */
-
+    // ---------------------------------------------------------
+    // Column mapping
+    // ---------------------------------------------------------
     QString displayColumnName(
         const QString &filePath,
         const QString &columnName
@@ -70,40 +87,100 @@ private:
     QList<QMap<QString, QString>> buildColumnMappings() const;
 
 private:
-    QWidget *mFileContainer;
-    QHBoxLayout *mFileLayout;
-    QScrollArea *mFileScrollArea;
 
-    QWidget *mContentWidget;
-    QVBoxLayout *mContentLayout;
+    // Files to compare panel
+    // =========================================================
 
-    FaultComparisonSelectionWidget *mComparisonSelection;
-    FaultComparisonTableWidget *mComparisonTable;
-    FaultTypeSettingsSummaryWidget *mFaultSettingsSummary;
+    QWidget *mFileContainer = nullptr;
 
-    //QWidget *mFaultSettingsWidget;
-    //QScrollArea *mFaultSettingsScrollArea;
-    //QWidget *mFaultSettingsContainer;
-    //QVBoxLayout *mFaultSettingsLayout;
-    QToolButton *mFaultSettingsToggleButton;
-    //QPushButton *mSkipSettingsButton;
+    // Changed from QHBoxLayout to QGridLayout
+    QGridLayout *mFileLayout = nullptr;
 
-    QAction *mAddCsvAction;
-    QAction *mClearFilesAction;
-    QAction *mExportPdfAction;
-    QAction *mExitAction;
+    QScrollArea *mFileScrollArea = nullptr;
+
+    QLabel *mFilesHeadingLabel = nullptr;
+    QFrame *mFilesPanel = nullptr;
+    QWidget *mFileCardsSection = nullptr;
+    QToolButton *mFilesCollapseButton = nullptr;
+    bool mFilesSectionCollapsed = false;
+    // ===========================================
+    // =========================================================
+    // Main comparison content
+    // =========================================================
+
+    QWidget *mContentWidget = nullptr;
+    QVBoxLayout *mContentLayout = nullptr;
+
+    FaultComparisonSelectionWidget *mComparisonSelection = nullptr;
+    FaultComparisonTableWidget *mComparisonTable = nullptr;
+
+
+    // =========================================================
+    // File cards
+    // =========================================================
+
+    QList<FaultFileCard *> mFileCards;
+
+
+    // =========================================================
+    // File information
+    // =========================================================
 
     QStringList mLoadedFiles;
+
     QList<QStringList> mCsvHeaders;
+
     QList<QList<QStringList>> mCsvRows;
 
+
+    // =========================================================
+    // Comparison columns
+    // =========================================================
+
     QStringList mDefaultColumns;
+
+
+    // =========================================================
+    // Fault Type Settings
+    //
+    // One settings object per loaded CSV file.
+    // =========================================================
+
     QMap<QString, FaultTypeSettings> mFaultSettings;
 
 
+    // =========================================================
+    // Display names
+    //
+    // Key   = actual CSV file path
+    // Value = name displayed in the UI/table/PDF
+    //
+    // Renaming therefore does NOT modify the real file.
+    // =========================================================
+
+    QMap<QString, QString> mDisplayNames;
+
+
+    // =========================================================
+    // File selection state
+    //
+    // Key   = actual CSV file path
+    // Value = checked/unchecked
+    //
+    // This allows loaded files to remain in the application
+    // while only checked files are included in comparison.
+    // =========================================================
+
+    QMap<QString, bool> mFileSelectionState;
+
+
+    // =========================================================
+    // Menu actions
+    // =========================================================
+
+    QAction *mAddCsvAction = nullptr;
+    QAction *mClearFilesAction = nullptr;
+    QAction *mExportPdfAction = nullptr;
+    QAction *mExportWordAction = nullptr;
+    QAction *mExitAction = nullptr;
 };
-
-
-
-
-

@@ -46,6 +46,8 @@ qt_add_executable(TAComparator
     src/ui/FaultTypeSettingsSummaryWidget.cpp
     src/ui/FaultColumnMapping.h
     src/ui/FaultColumnMapping.cpp
+    src/ui/FaultFileCard.h
+    src/ui/FaultFileCard.cpp
 
 
 
