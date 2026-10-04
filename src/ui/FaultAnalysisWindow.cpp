@@ -1640,6 +1640,7 @@ void FaultAnalysisWindow::exportPdf()
     struct ParamTableData {
         QString paramName;
         QList<ParamCol> columns;
+        QStringList rowBusbarNames; // Preserves individual table row reorder
     };
 
     QList<ParamTableData> allParamTables;
@@ -1668,6 +1669,16 @@ void FaultAnalysisWindow::exportPdf()
 
                 ParamTableData pData;
                 pData.paramName = cardParam;
+
+                // Capture each individual stacked card table's exact row order
+                for (int r = 0; r < miniTable->rowCount(); ++r)
+                {
+                    QTableWidgetItem *nItem = miniTable->item(r, 1);
+                    if (nItem && !nItem->text().trimmed().isEmpty())
+                        pData.rowBusbarNames.append(nItem->text().trimmed());
+                    else if (r < busbarNames.size())
+                        pData.rowBusbarNames.append(busbarNames.at(r));
+                }
 
                 QHeaderView *miniHeader = miniTable->horizontalHeader();
                 for (int v = 2; v < miniTable->columnCount(); ++v)
@@ -1718,6 +1729,7 @@ void FaultAnalysisWindow::exportPdf()
         {
             ParamTableData pData;
             pData.paramName = gName;
+            pData.rowBusbarNames = busbarNames;
 
             for (int v = 0; v < table->columnCount(); ++v)
             {
@@ -1758,6 +1770,7 @@ void FaultAnalysisWindow::exportPdf()
         {
             ParamTableData pData;
             pData.paramName = pName;
+            pData.rowBusbarNames = busbarNames;
             for (int f = 0; f < mLoadedFiles.size(); ++f)
             {
                 const QString &fPath = mLoadedFiles.at(f);
@@ -2448,6 +2461,9 @@ void FaultAnalysisWindow::exportPdf()
 
             const int maxColsPerChunk = 12;
 
+            // Use the specific row order of this stacked card table
+            const QStringList &cardBusbarNames = !param.rowBusbarNames.isEmpty() ? param.rowBusbarNames : busbarNames;
+
             for (int chunkStart = 0; chunkStart < totalCols; chunkStart += maxColsPerChunk)
             {
                 int chunkEnd = qMin(chunkStart + maxColsPerChunk, totalCols);
@@ -2533,8 +2549,8 @@ void FaultAnalysisWindow::exportPdf()
 
                 drawStackedHeaders();
 
-                // Rows
-                for (int r = 0; r < busbarNames.size(); ++r)
+                // Rows rendered using the specific order of this card
+                for (int r = 0; r < cardBusbarNames.size(); ++r)
                 {
                     if (curY + cellRowH > bottom - 50)
                     {
@@ -2543,7 +2559,7 @@ void FaultAnalysisWindow::exportPdf()
                         drawStackedHeaders();
                     }
 
-                    const QString &bName = busbarNames.at(r);
+                    const QString &bName = cardBusbarNames.at(r);
                     int rx = left;
 
                     QRect nCell(rx, curY, numColWidth, cellRowH);
@@ -2707,6 +2723,25 @@ void FaultAnalysisWindow::exportWord()
             busbarNames.append(bName);
         }
     }
+    else
+    {
+        for (int fileIdx = 0; fileIdx < mLoadedFiles.size(); ++fileIdx)
+        {
+            if (fileIdx >= mCsvHeaders.size() || fileIdx >= mCsvRows.size()) continue;
+            const QStringList &headers = mCsvHeaders.at(fileIdx);
+            int nIdx = headers.indexOf("Name");
+            if (nIdx < 0) continue;
+            for (const QStringList &row : mCsvRows.at(fileIdx))
+            {
+                if (nIdx < row.size())
+                {
+                    QString bName = row.at(nIdx).trimmed();
+                    if (!bName.isEmpty() && !busbarNames.contains(bName))
+                        busbarNames.append(bName);
+                }
+            }
+        }
+    }
 
     // 4. Resolve Parameters & Column Structure in exact visual order
     struct ParamCol {
@@ -2717,6 +2752,7 @@ void FaultAnalysisWindow::exportWord()
     struct ParamTableData {
         QString paramName;
         QList<ParamCol> columns;
+        QStringList rowBusbarNames; // Preserves individual table row reorder
     };
 
     QList<ParamTableData> allParamTables;
@@ -2745,6 +2781,16 @@ void FaultAnalysisWindow::exportWord()
 
                 ParamTableData pData;
                 pData.paramName = cardParam;
+
+                // Capture each individual stacked card table's exact row order
+                for (int r = 0; r < miniTable->rowCount(); ++r)
+                {
+                    QTableWidgetItem *nItem = miniTable->item(r, 1);
+                    if (nItem && !nItem->text().trimmed().isEmpty())
+                        pData.rowBusbarNames.append(nItem->text().trimmed());
+                    else if (r < busbarNames.size())
+                        pData.rowBusbarNames.append(busbarNames.at(r));
+                }
 
                 QHeaderView *miniHeader = miniTable->horizontalHeader();
                 for (int v = 2; v < miniTable->columnCount(); ++v)
@@ -2793,6 +2839,7 @@ void FaultAnalysisWindow::exportWord()
         {
             ParamTableData pData;
             pData.paramName = gName;
+            pData.rowBusbarNames = busbarNames;
 
             for (int v = 0; v < table->columnCount(); ++v)
             {
@@ -2820,6 +2867,26 @@ void FaultAnalysisWindow::exportWord()
                 }
             }
 
+            if (!pData.columns.isEmpty())
+                allParamTables.append(pData);
+        }
+    }
+
+    if (allParamTables.isEmpty())
+    {
+        QStringList selParams = mComparisonSelection->selectedColumns();
+        selParams.removeAll("Name");
+        for (const QString &pName : selParams)
+        {
+            ParamTableData pData;
+            pData.paramName = pName;
+            pData.rowBusbarNames = busbarNames;
+            for (int f = 0; f < mLoadedFiles.size(); ++f)
+            {
+                const QString &fPath = mLoadedFiles.at(f);
+                if (disabledPaths.contains(fPath)) continue;
+                pData.columns.append(ParamCol{fileMetaMap.value(fPath).effectiveName, f});
+            }
             if (!pData.columns.isEmpty())
                 allParamTables.append(pData);
         }
@@ -3227,6 +3294,9 @@ void FaultAnalysisWindow::exportWord()
     {
         for (const ParamTableData &param : allParamTables)
         {
+            // Use the specific row order of this stacked card table
+            const QStringList &cardBusbarNames = !param.rowBusbarNames.isEmpty() ? param.rowBusbarNames : busbarNames;
+
             out << "<table>\n";
             out << "<tr>";
             out << QString("<th class=\"banner-bg\" colspan=\"%1\">%2</th>")
@@ -3241,9 +3311,10 @@ void FaultAnalysisWindow::exportWord()
                 out << QString("<th class=\"header-bg\">%1</th>").arg(col.fileDisplayName);
             out << "</tr>\n";
 
-            for (int r = 0; r < busbarNames.size(); ++r)
+            // Render rows in the exact local order of this card table
+            for (int r = 0; r < cardBusbarNames.size(); ++r)
             {
-                const QString &bName = busbarNames.at(r);
+                const QString &bName = cardBusbarNames.at(r);
                 out << "<tr>";
                 out << QString("<td class=\"alt-bg\">%1</td>").arg(r + 1);
                 out << QString("<td class=\"left-align\"><b>%1</b></td>").arg(bName);

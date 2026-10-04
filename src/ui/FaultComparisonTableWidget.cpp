@@ -26,6 +26,9 @@
 #include <functional>
 #include <cmath>
 
+// Map to track row order independently for each stacked parameter table
+static QMap<QString, QStringList> sStackedRowOrders;
+
 // ============================================================
 // Clean Row Drag & Drop Filter (Prevents Cell Item Corruption)
 // ============================================================
@@ -119,6 +122,7 @@ private:
     int mDragRow;
     bool mDragging;
 };
+
 // ============================================================
 // Draggable Header Label for Stacked Mode Cards
 // ============================================================
@@ -1005,6 +1009,24 @@ void FaultComparisonTableWidget::setData(
     }
     mCustomRowOrder = updatedRowOrder;
 
+    // Synchronize existing stacked orders with newly added/removed rows
+    for (auto it = sStackedRowOrders.begin(); it != sStackedRowOrders.end(); ++it)
+    {
+        QStringList order = it.value();
+        QStringList cleanedOrder;
+        for (const QString &n : order)
+        {
+            if (discoveredNames.contains(n))
+                cleanedOrder.append(n);
+        }
+        for (const QString &n : discoveredNames)
+        {
+            if (!cleanedOrder.contains(n))
+                cleanedOrder.append(n);
+        }
+        it.value() = cleanedOrder;
+    }
+
     if (mFileNames.isEmpty() || mSelectedColumns.isEmpty())
     {
         mTable->hide();
@@ -1299,7 +1321,7 @@ void FaultComparisonTableWidget::RebuildTable()
 }
 
 // ============================================================
-// MODE B: STACKED VIEW (WITH PINNED COLUMNS & DRAG REORDERING)
+// MODE B: STACKED VIEW (WITH PINNED COLUMNS & INDEPENDENT DRAG REORDERING)
 // ============================================================
 void FaultComparisonTableWidget::buildStackedView()
 {
@@ -1321,8 +1343,8 @@ void FaultComparisonTableWidget::buildStackedView()
     }
     mSelectedColumns = uniqueColumns;
 
-    QStringList names = mCustomRowOrder;
-    if (names.isEmpty())
+    QStringList baseNames = mCustomRowOrder;
+    if (baseNames.isEmpty())
     {
         for (int fileIndex = 0; fileIndex < mFileNames.size(); ++fileIndex)
         {
@@ -1340,11 +1362,11 @@ void FaultComparisonTableWidget::buildStackedView()
                     continue;
 
                 const QString name = row.at(nameIndex);
-                if (!name.isEmpty() && !names.contains(name))
-                    names.append(name);
+                if (!name.isEmpty() && !baseNames.contains(name))
+                    baseNames.append(name);
             }
         }
-        mCustomRowOrder = names;
+        mCustomRowOrder = baseNames;
     }
 
     int parameterCount = 0;
@@ -1360,27 +1382,14 @@ void FaultComparisonTableWidget::buildStackedView()
             QString("%1 files · %2 parameters · %3 rows")
                 .arg(mFileNames.size())
                 .arg(parameterCount)
-                .arg(names.size())
+                .arg(baseNames.size())
             );
     }
 
-    if (names.isEmpty())
+    if (baseNames.isEmpty())
         return;
 
     QSet<QString> processedParams;
-
-    auto moveRowOrder = [this](int fromRow, int toRow) {
-        if (fromRow < 0 || toRow < 0 || fromRow == toRow || mCustomRowOrder.isEmpty())
-            return;
-        if (fromRow < mCustomRowOrder.size() && toRow < mCustomRowOrder.size())
-        {
-            mCustomRowOrder.move(fromRow, toRow);
-            if (mLayoutMode == TableLayoutMode::SideBySide)
-                RebuildTable();
-            else
-                buildStackedView();
-        }
-    };
 
     for (const QString &column : mSelectedColumns)
     {
@@ -1390,6 +1399,29 @@ void FaultComparisonTableWidget::buildStackedView()
         if (processedParams.contains(column))
             continue;
         processedParams.insert(column);
+
+        // Fetch or initialize this specific card's independent row order
+        if (!sStackedRowOrders.contains(column) || sStackedRowOrders.value(column).isEmpty())
+        {
+            sStackedRowOrders[column] = baseNames;
+        }
+        else
+        {
+            // Sync with current dataset names
+            QStringList existing = sStackedRowOrders.value(column);
+            QStringList synced;
+            for (const QString &n : existing)
+            {
+                if (baseNames.contains(n)) synced.append(n);
+            }
+            for (const QString &n : baseNames)
+            {
+                if (!synced.contains(n)) synced.append(n);
+            }
+            sStackedRowOrders[column] = synced;
+        }
+
+        QStringList names = sStackedRowOrders.value(column);
 
         QList<int> validFileIndices;
         for (int fileIndex = 0; fileIndex < mFileNames.size(); ++fileIndex)
@@ -1643,11 +1675,24 @@ void FaultComparisonTableWidget::buildStackedView()
         connect(stackedFrozen->verticalScrollBar(), &QScrollBar::valueChanged,
                 blockTable->verticalScrollBar(), &QScrollBar::setValue);
 
-        // Clean row dragging for stacked cards
-        TableRowDragFilter *blockDragFilter = new TableRowDragFilter(blockTable, moveRowOrder, blockCard);
+        // Individual move action per card: reorders only THIS table card
+        QString thisParam = column;
+        auto moveSingleStackedOrder = [this, thisParam](int fromRow, int toRow) {
+            if (fromRow < 0 || toRow < 0 || fromRow == toRow)
+                return;
+            QStringList order = sStackedRowOrders.value(thisParam);
+            if (fromRow < order.size() && toRow < order.size())
+            {
+                order.move(fromRow, toRow);
+                sStackedRowOrders[thisParam] = order;
+                buildStackedView();
+            }
+        };
+
+        TableRowDragFilter *blockDragFilter = new TableRowDragFilter(blockTable, moveSingleStackedOrder, blockCard);
         blockTable->viewport()->installEventFilter(blockDragFilter);
 
-        TableRowDragFilter *stackedFrozenDragFilter = new TableRowDragFilter(stackedFrozen, moveRowOrder, blockCard);
+        TableRowDragFilter *stackedFrozenDragFilter = new TableRowDragFilter(stackedFrozen, moveSingleStackedOrder, blockCard);
         stackedFrozen->viewport()->installEventFilter(stackedFrozenDragFilter);
 
         StackedFrozenFilter *frozenFilter = new StackedFrozenFilter(blockTable, stackedFrozen, blockTable);
