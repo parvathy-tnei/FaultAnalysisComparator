@@ -734,7 +734,7 @@ private:
 FaultComparisonTableWidget::FaultComparisonTableWidget(QWidget *parent)
     : QWidget(parent)
     , mDifferenceEnabled(false)
-    , mLayoutMode(TableLayoutMode::SideBySide)
+    , mLayoutMode(TableLayoutMode::Stacked) // Set to Stacked by default
     , mComparisonTitle(nullptr)
     , mComparisonSummary(nullptr)
     , mComparisonLegend(nullptr)

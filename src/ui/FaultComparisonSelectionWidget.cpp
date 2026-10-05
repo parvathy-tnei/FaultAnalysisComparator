@@ -79,7 +79,7 @@ static QString getRadioIconPath(bool checked, const QColor &ringColor, const QCo
 
 FaultComparisonSelectionWidget::FaultComparisonSelectionWidget(QWidget *parent)
     : QWidget(parent)
-    , mCurrentMode(TableLayoutMode::SideBySide)
+    , mCurrentMode(TableLayoutMode::Stacked) // Set Stacked as default
     , mMainLayout(nullptr)
     , mHeaderWidget(nullptr)
     , mHeaderLayout(nullptr)
@@ -176,7 +176,7 @@ FaultComparisonSelectionWidget::FaultComparisonSelectionWidget(QWidget *parent)
     mColumnScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     mColumnScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mColumnScrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    mColumnScrollArea->setMinimumHeight(60); // Small minimum height avoids overlapping controls
+    mColumnScrollArea->setMinimumHeight(60);
 
     mColumnContainer = new QWidget();
     mColumnContainer->setObjectName("paramsListContainer");
@@ -351,9 +351,11 @@ void FaultComparisonSelectionWidget::createLayoutSection()
     mContentLayout->addWidget(mSideBySideCard, 0);
     mContentLayout->addWidget(mStackedCard, 0);
 
-    mSideBySideRadio->setChecked(true);
-    mSideBySideCard->setProperty("selected", true);
-    mStackedCard->setProperty("selected", false);
+    // Stacked enabled and checked by default
+    mStackedRadio->setChecked(true);
+    mStackedCard->setProperty("selected", true);
+    mSideBySideRadio->setChecked(false);
+    mSideBySideCard->setProperty("selected", false);
 
     mSideBySideCard->installEventFilter(this);
     mStackedCard->installEventFilter(this);

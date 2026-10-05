@@ -1952,20 +1952,19 @@ void FaultAnalysisWindow::exportPdf()
     curY += 20;
 
     // =========================================================
-    // LOADED DATASETS LIST: WITH GENEROUS SPACING BETWEEN FILES
+    // LOADED DATASETS LIST: SPACED TEXT ROWS WITH FULLY VISIBLE DOTS
     // =========================================================
     painter.setFont(sectionFont);
     painter.setPen(brandBlue);
     QFontMetrics fmSec = painter.fontMetrics();
     painter.drawText(left, curY + fmSec.ascent(), "Loaded Datasets");
-    curY += fmSec.height() + 16;
+    curY += fmSec.height() + 14;
 
-    const int vRowH = 38;
-    const int vRowGap = 12;
+    const int vLineH = 48; // Generous row height with plenty of vertical breathing space
 
     for (int i = 0; i < activeFiles.size(); ++i)
     {
-        if (curY + vRowH > bottom - 60)
+        if (curY + vLineH > bottom - 60)
         {
             triggerNewPage();
             curY = top + 20;
@@ -1973,30 +1972,28 @@ void FaultAnalysisWindow::exportPdf()
 
         const FileInfoMeta meta = fileMetaMap.value(activeFiles.at(i));
 
-        QRect rowRect(left, curY, pageWidth, vRowH);
-        painter.fillRect(rowRect, (i % 2 == 0) ? QColor("#FFFFFF") : altRowBg);
-        painter.setPen(QPen(borderGray, 0.5));
-        painter.drawRect(rowRect);
-
+        // Index number with dot (widened box to 55px guarantees "10.", "11.", "12." are never clipped)
         painter.setFont(colHeaderFont);
         painter.setPen(textMuted);
-        painter.drawText(QRect(left + 18, curY, 65, vRowH), Qt::AlignLeft | Qt::AlignVCenter, QString("%1.").arg(i + 1));
+        painter.drawText(QRect(left + 8, curY, 55, vLineH), Qt::AlignLeft | Qt::AlignVCenter, QString("%1.").arg(i + 1));
 
+        // Alias / Identifier (offset to 65 ensures clear separation from the dot)
         painter.setFont(colHeaderFont);
         painter.setPen(navyDark);
         QString idPart = meta.effectiveName + " ";
         int aWidth = painter.fontMetrics().horizontalAdvance(idPart);
-        painter.drawText(QRect(left + 90, curY, aWidth, vRowH), Qt::AlignLeft | Qt::AlignVCenter, idPart);
+        painter.drawText(QRect(left + 65, curY, aWidth, vLineH), Qt::AlignLeft | Qt::AlignVCenter, idPart);
 
+        // Original Filename
         painter.setFont(cellFont);
         painter.setPen(textMuted);
-        QRect origRect(left + 90 + aWidth, curY, pageWidth - (110 + aWidth), vRowH);
+        QRect origRect(left + 65 + aWidth, curY, pageWidth - (80 + aWidth), vLineH);
         painter.drawText(origRect, Qt::AlignLeft | Qt::AlignVCenter, QString("(%1)").arg(meta.originalName));
 
-        curY += vRowH + vRowGap;
+        curY += vLineH;
     }
 
-    curY += 20;
+    curY += 24;
 
     // =========================================================
     // CONFIGURED FAULT TYPE SETTINGS
@@ -2059,8 +2056,10 @@ void FaultAnalysisWindow::exportPdf()
         for (int w : sWidths) sumSW += w;
         for (int &w : sWidths) w = (w * pageWidth) / sumSW;
 
-        const int sHeaderH = 46;
-        const int sRowH = 44;
+        // UNIFORM MINIMUM CELL HEIGHT FOR SETTINGS TABLE: 60px default minimum cell height
+        const int minSettingsRowH = 60;
+        const int sHeaderH = qMax(minSettingsRowH, fmColHeader.height() + 28);
+        const int sRowH = qMax(minSettingsRowH, fmCell.height() + 28);
 
         int sx = left;
         for (int i = 0; i < sHeaders.size(); ++i)
@@ -2234,13 +2233,25 @@ void FaultAnalysisWindow::exportPdf()
     }
     const int nameColWidth = qBound(310, maxBusbarTextW + 80, 440);
 
-    // INCREASED HEIGHTS: Guarantees multi-line titles like Asymmetric RMS (kA) are fully visible
-    const int cellRowH = 50;
+    const int minDefaultCellH = 60;
+    const int cellRowH = qMax(minDefaultCellH, fmCell.height() + 28);
     const int gapAfterTable = 40;
-    const int topLevelH = 88;
-    const int subLevelH = 60;
+    const int topLevelH = 92;
+    const int subLevelH = 64;
     const int totalHeaderH = topLevelH + subLevelH;
     const int availableDataWidth = pageWidth - (numColWidth + nameColWidth);
+
+    // Draw Section Header: Comparison Tables
+    if (curY + 40 > bottom - 60)
+    {
+        triggerNewPage();
+        curY = top + 20;
+    }
+    painter.setFont(sectionFont);
+    painter.setPen(brandBlue);
+    QFontMetrics fmSecComp = painter.fontMetrics();
+    painter.drawText(left, curY + fmSecComp.ascent(), "Comparison Tables");
+    curY += fmSecComp.height() + 16;
 
     // =========================================================
     // 8A. MODE: SIDE-BY-SIDE (SMART BOUNDARIES: MERGE FEW, ISOLATE FULL)
@@ -2605,7 +2616,8 @@ void FaultAnalysisWindow::exportPdf()
                         painter.setPen(rowColors[i].fg);
                         painter.drawText(dCell.adjusted(6, 0, -6, 0), Qt::AlignCenter | Qt::AlignVCenter, val);
 
-                        painter.setPen(QPen(borderDark, 1.0));
+                        bool isChunkEdge = (i == colCount - 1);
+                        painter.setPen(QPen(borderDark, isChunkEdge ? 1.5 : 1.0));
                         painter.drawLine(dCell.right(), dCell.top(), dCell.right(), dCell.bottom());
 
                         rx += colW;

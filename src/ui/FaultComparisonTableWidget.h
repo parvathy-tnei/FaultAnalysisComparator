@@ -76,7 +76,7 @@ private:
     QStringList                     mCustomRowOrder;
 
     bool                            mDifferenceEnabled = false;
-    TableLayoutMode                 mLayoutMode = TableLayoutMode::SideBySide;
+    TableLayoutMode                 mLayoutMode = TableLayoutMode::Stacked;
 
     QLabel                         *mComparisonTitle = nullptr;
     QLabel                         *mComparisonSummary = nullptr;
