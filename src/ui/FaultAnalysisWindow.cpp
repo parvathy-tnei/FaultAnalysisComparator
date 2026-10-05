@@ -1960,7 +1960,7 @@ void FaultAnalysisWindow::exportPdf()
     painter.drawText(left, curY + fmSec.ascent(), "Loaded Datasets");
     curY += fmSec.height() + 14;
 
-    const int vLineH = 48; // Generous row height with plenty of vertical breathing space
+    const int vLineH = 48;
 
     for (int i = 0; i < activeFiles.size(); ++i)
     {
@@ -1972,19 +1972,16 @@ void FaultAnalysisWindow::exportPdf()
 
         const FileInfoMeta meta = fileMetaMap.value(activeFiles.at(i));
 
-        // Index number with dot (widened box to 55px guarantees "10.", "11.", "12." are never clipped)
         painter.setFont(colHeaderFont);
         painter.setPen(textMuted);
         painter.drawText(QRect(left + 8, curY, 55, vLineH), Qt::AlignLeft | Qt::AlignVCenter, QString("%1.").arg(i + 1));
 
-        // Alias / Identifier (offset to 65 ensures clear separation from the dot)
         painter.setFont(colHeaderFont);
         painter.setPen(navyDark);
         QString idPart = meta.effectiveName + " ";
         int aWidth = painter.fontMetrics().horizontalAdvance(idPart);
         painter.drawText(QRect(left + 65, curY, aWidth, vLineH), Qt::AlignLeft | Qt::AlignVCenter, idPart);
 
-        // Original Filename
         painter.setFont(cellFont);
         painter.setPen(textMuted);
         QRect origRect(left + 65 + aWidth, curY, pageWidth - (80 + aWidth), vLineH);
@@ -2056,7 +2053,6 @@ void FaultAnalysisWindow::exportPdf()
         for (int w : sWidths) sumSW += w;
         for (int &w : sWidths) w = (w * pageWidth) / sumSW;
 
-        // UNIFORM MINIMUM CELL HEIGHT FOR SETTINGS TABLE: 60px default minimum cell height
         const int minSettingsRowH = 60;
         const int sHeaderH = qMax(minSettingsRowH, fmColHeader.height() + 28);
         const int sRowH = qMax(minSettingsRowH, fmCell.height() + 28);
@@ -2254,24 +2250,47 @@ void FaultAnalysisWindow::exportPdf()
     curY += fmSecComp.height() + 16;
 
     // =========================================================
-    // 8A. MODE: SIDE-BY-SIDE (SMART BOUNDARIES: MERGE FEW, ISOLATE FULL)
+    // 8A. MODE: SIDE-BY-SIDE (SMART CHUNKING FOR MANY DATASETS)
     // =========================================================
     if (!isStacked)
     {
+        const int maxSideColsPerChunk = 7;
+
+        QList<ParamTableData> chunkedParamTables;
+        for (const ParamTableData &p : allParamTables)
+        {
+            if (p.columns.size() <= maxSideColsPerChunk)
+            {
+                chunkedParamTables.append(p);
+            }
+            else
+            {
+                const int totalCols = p.columns.size();
+                for (int start = 0; start < totalCols; start += maxSideColsPerChunk)
+                {
+                    int end = qMin(start + maxSideColsPerChunk, totalCols);
+
+                    ParamTableData pPart;
+                    pPart.paramName = p.paramName; // Keeps clean parameter title without part suffix
+                    pPart.rowBusbarNames = p.rowBusbarNames;
+                    pPart.columns = p.columns.mid(start, end - start);
+                    chunkedParamTables.append(pPart);
+                }
+            }
+        }
+
         int pIdx = 0;
-        while (pIdx < allParamTables.size())
+        while (pIdx < chunkedParamTables.size())
         {
             QList<ParamTableData> rowParams;
             int totalColsOnRow = 0;
 
-            const int maxMergeCols = 6;
-
-            while (pIdx < allParamTables.size())
+            while (pIdx < chunkedParamTables.size())
             {
-                const ParamTableData &candidate = allParamTables[pIdx];
+                const ParamTableData &candidate = chunkedParamTables[pIdx];
                 int nextCount = candidate.columns.size();
 
-                if (!rowParams.isEmpty() && (totalColsOnRow + nextCount) > maxMergeCols)
+                if (!rowParams.isEmpty() && (totalColsOnRow + nextCount) > maxSideColsPerChunk)
                 {
                     break;
                 }
@@ -2280,7 +2299,7 @@ void FaultAnalysisWindow::exportPdf()
                 totalColsOnRow += nextCount;
                 ++pIdx;
 
-                if (totalColsOnRow >= maxMergeCols)
+                if (totalColsOnRow >= maxSideColsPerChunk)
                     break;
             }
 
@@ -2440,7 +2459,7 @@ void FaultAnalysisWindow::exportPdf()
 
                         painter.setFont(cellFont);
                         painter.setPen(paramColors[c].fg);
-                        painter.drawText(dCell.adjusted(6, 0, -6, 0), Qt::AlignCenter | Qt::AlignVCenter, val);
+                        painter.drawText(dCell.adjusted(4, 0, -4, 0), Qt::AlignCenter | Qt::AlignVCenter, val);
 
                         bool isGroupEdge = (c == param.columns.size() - 1);
                         painter.setPen(QPen(borderDark, isGroupEdge ? 2.0 : 1.0));
@@ -2496,14 +2515,8 @@ void FaultAnalysisWindow::exportPdf()
                     painter.setFont(bannerFont);
                     painter.setPen(bannerText);
 
+                    // Clean parameter title without Part suffix
                     QString titleText = param.paramName;
-                    if (totalCols > maxColsPerChunk)
-                    {
-                        int currentPart = (chunkStart / maxColsPerChunk) + 1;
-                        int totalParts = (totalCols + maxColsPerChunk - 1) / maxColsPerChunk;
-                        titleText += QString(" (Columns %1 to %2 of %3 — Part %4 of %5)")
-                                         .arg(chunkStart + 1).arg(chunkEnd).arg(totalCols).arg(currentPart).arg(totalParts);
-                    }
                     QRect bannerTextRect = bannerRect.adjusted(16, 4, -16, -4);
                     painter.drawText(bannerTextRect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextWordWrap, titleText);
                     curY += topLevelH;
@@ -2614,7 +2627,7 @@ void FaultAnalysisWindow::exportPdf()
 
                         painter.setFont(cellFont);
                         painter.setPen(rowColors[i].fg);
-                        painter.drawText(dCell.adjusted(6, 0, -6, 0), Qt::AlignCenter | Qt::AlignVCenter, val);
+                        painter.drawText(dCell.adjusted(4, 0, -4, 0), Qt::AlignCenter | Qt::AlignVCenter, val);
 
                         bool isChunkEdge = (i == colCount - 1);
                         painter.setPen(QPen(borderDark, isChunkEdge ? 1.5 : 1.0));
